@@ -1,0 +1,4 @@
+#!/bin/sh
+acme -v cbm2-basic4plus.b
+diff -s basic.bin original/basic128_2b.bin
+cmp basic.bin original/basic128_2b.bin
