@@ -5,6 +5,7 @@
 !to "basic.bin", plain
 ; * switches
 PATCH4A = 1	; Revision -04a
+PATCHERR = 1	; Patch Errorcodes absolute instead immediate by Vossi
 ; conditional assembly constants
 CC1 =0		; 64k  version
 CC2 =1		; 128k version
@@ -388,6 +389,9 @@ errnum	*=*+1
 ; used by the dos interface routines. note, declaration
 ; order of locations dosofl-dossa must be preserved.
 ; ****************************************** ABSOLUTE *********************************************
+!addr	zp	= $00		; zeropage start
+!addr	stack	= $0100		; Stack
+!addr	memend	= $ffff
 ; Basic's ROM page work area
 * =$200
 fbuffr
@@ -493,7 +497,8 @@ tmpdes	*=*+6			; temporary for instr$
 highst	*=*+2			; max offset for any user bank
 
 msiism	*=*+1			; used to save length of string to be added in garb collect
-newsys	= $ff6c
+!addr newsys	= $ff6c
+!addr vreset	= $ff6f
 ; ******************************************* TOKENS **********************************************
 !initmem FILL                   ; All unused memory filled with $FF
 ; 8000 'tables, reserved words, and error texts'
@@ -1399,24 +1404,24 @@ fndfor:	tsx			 ; load x with stk ptr.
 	inx
 	inx		 	; ignore adr (newstt) and rts adr.
 
-ffloop:	lda 257,x		; get stack entry
+ffloop:	lda stack+1,x		; get stack entry
 	cmp #tkfor
 	bne ffrts		; if not 'for' token
 	lda forpnt+2		; test for real bank#
 	bpl cmpfor		; yes...
-	lda 258,x		; no, so assume this one
+	lda stack+2,x		; no, so assume this one
 	sta forpnt
-	lda 259,x
+	lda stack+3,x
 	sta forpnt+1
-	lda 260,x
+	lda stack+4,x
 	sta forpnt+2
-cmpfor:	cmp 260,x
+cmpfor:	cmp stack+4,x
 	bne addfrs
 	lda forpnt+1
-	cmp 259,x
+	cmp stack+3,x
 	bne addfrs
 	lda forpnt
-	cmp 258,x
+	cmp stack+2,x
 	beq ffrts
 addfrs:	txa 
 	clc
@@ -2016,7 +2021,7 @@ havfor:	txs
 	ldy #1
 	jsr movfm		; fac<-step value
 	tsx
-	lda addprc+265,x
+	lda stack+9+addprc,x
 	sta facsgn
 	lda forpnt
 	ldy forpnt+1
@@ -2028,15 +2033,15 @@ havfor:	txs
 	jsr fcompn		; compare to limit
 	tsx
 	sec			; correct results for sign
-	sbc addprc+265,x
+	sbc stack+9+addprc,x
 	beq loopdn
-	lda 270+addprc+addprc,x
+	lda stack+14+addprc+addprc,x
 	sta curlin		; not done, repeat...
-	lda 271+addprc+addprc,x
+	lda stack+15+addprc+addprc,x
 	sta curlin+1
-	lda 273+addprc+addprc,x
+	lda stack+17+addprc+addprc,x
 	sta txtptr
-	lda 272+addprc+addprc,x
+	lda stack+16+addprc+addprc,x
 	sta txtptr+1
 newsgo:	jmp newstt
 
@@ -2465,7 +2470,7 @@ dispo1:	tya			; y==>x
 	tax
 	cpy #$ff		; stack empty?
 	beq diserr		; yes...
-	lda 257,x
+	lda stack+1,x
 	cmp #tkfor
 	bne dispo2
 	txa 			; stack entry is a for loop, 19 bytes.
@@ -2478,13 +2483,13 @@ dispo2:	txa			; stack entry is gosub, 5 bytes.
 
 dispo3:	bcs diserr		; stack underflow...
 	tay
-	lda 257,x
+	lda stack+1,x
 	cmp oldtok
 	bne dispo1		; keep looking
 	beq dispo5
 dispo4:	ldx dsptmp
-dispo5:	lda 256,x 		; shift stack down
-	sta 256,y
+dispo5:	lda stack,x 		; shift stack down
+	sta stack,y
 	dey
 	dex
 	stx dsptmp		; done when x=s
@@ -3044,10 +3049,19 @@ cld3:	jsr msg			; output message
 	jmp fini		; relink, set end of text and goto main loop
 
 cld4:
+!if PATCHERR = 1{		; *** Patch Errorcodes absolute instead immediate by Vossi ***
+!if CC1{		; *** 64k version ***
+	ldx #errom		; 64k
+} else{			; *** not 64k version ***
+	ldx #errot		; except 64k
+}
+}
+!if PATCHERR = 0{
 !if CC1{		; *** 64k version ***
 	ldx errom		; 64k
 } else{			; *** not 64k version ***
 	ldx errot		; except 64k
+}
 }
 	bne cld3		; always
 
@@ -4248,7 +4262,7 @@ isvrm1=isvret-1
 	cmp #<isvrm1
 	bne notevl
 	tsx
-	lda $102,x
+	lda stack+2,x
 	cmp #>isvrm1
 	bne notevl
 ldzr:	lda #<zero
@@ -4508,14 +4522,14 @@ indlop:	lda varnam+1
 	pla
 	tay
 	tsx
-	lda 258,x
+	lda stack+2,x
 	pha
-	lda 257,x
+	lda stack+1,x
 	pha
 	lda indice
-	sta 258,x
+	sta stack+2,x
 	lda indice+1
-	sta 257,x
+	sta stack+1,x
 	
 	iny
 	tya
@@ -5139,7 +5153,7 @@ faddt:	bne faddb
 
 faddb:	ldx facov
 	stx oldov
-	ldx #argexp
+	ldx #<argexp
 	lda argexp
 faddc:	tay
 	beq zerrts
@@ -5154,7 +5168,7 @@ faddc:	tay
 	adc #0
 	ldy #0
 	sty oldov
-	ldx #fac
+	ldx #<fac
 	bne fadd1
 fadda:	ldy #0
 	sty facov
@@ -5162,29 +5176,29 @@ fadd1:	cmp #$f9
 	bmi fadd5
 	tay
 	lda facov
-	lsr 1,x
+	lsr zp+1,x
 	jsr rolshf
 fadd4:	bit arisgn
 	bpl fadd2
-	ldy #facexp
-	cpx #argexp
+	ldy #<facexp
+	cpx #<argexp
 	beq subit
-	ldy #argexp
+	ldy #<argexp
 subit:	sec
 	eor #$ff
 	adc oldov
 	sta facov
-	lda 3+addprc,y
-	sbc 3+addprc,x
+	lda zp+3+addprc,y
+	sbc zp+3+addprc,x
 	sta faclo
-	lda addprc+2,y
-	sbc 2+addprc,x
+	lda zp+2+addprc,y
+	sbc zp+2+addprc,x
 	sta facmo
-	lda 2,y
-	sbc 2,x
+	lda zp+2,y
+	sbc zp+2,x
 	sta facmoh
-	lda 1,y
-	sbc 1,x
+	lda zp+1,y
+	sbc zp+1,x
 	sta facho
 fadflt:	bcs normal
 	jsr negfac
@@ -5288,17 +5302,17 @@ overr:	ldx #errov
 ; -------------------------------------------------------------------------------------------------
 ; 9f63 mulshf
 
-mulshf:	ldx #resho-1
+mulshf:	ldx #<(resho-1)
 shftr2:	ldy 3+addprc,x
 	sty facov
-	ldy 3,x
-	sty 4,x
-	ldy 2,x
-	sty 3,x
-	ldy 1,x
-	sty 2,x
+	ldy zp+3,x
+	sty zp+4,x
+	ldy zp+2,x
+	sty zp+3,x
+	ldy zp+1,x
+	sty zp+2,x
 	ldy bits
-	sty 1,x
+	sty zp+1,x
 shiftr:	adc #$08
 	bmi shftr2
 	beq shftr2
@@ -5306,14 +5320,14 @@ shiftr:	adc #$08
 	tay
 	lda facov
 	bcs shftrt
-shftr3:	asl 1,x
+shftr3:	asl zp+1,x
 	bcc shftr4
-	inc 1,x
-shftr4:	ror 1,x
-	ror 1,x
-rolshf:	ror 2,x
-	ror 3,x
-	ror 4,x
+	inc zp+1,x
+shftr4:	ror zp+1,x
+	ror zp+1,x
+rolshf:	ror zp+2,x
+	ror zp+3,x
+	ror zp+4,x
 	ror
 	iny
 	bne shftr3
@@ -5620,9 +5634,9 @@ movfum:	sta index1
 ;   movmf:  system memory <- fac
 ;   movvf:  forpnt var  <- fac
 ;   movumf: user memory <- fac
-mov2f:	ldx #tempf2
+mov2f:	ldx #<tempf2
 	!byte $2c
-mov1f:	ldx #tempf1
+mov1f:	ldx #<tempf1
 	ldy #0
 movmf:	jsr round
 	lda #sysbnk
@@ -5781,7 +5795,7 @@ qint:	lda facexp
 	sta bits
 	jsr negfch
 	txa
-qishft:	ldx #fac
+qishft:	ldx #<fac
 	cmp #$f9
 	bpl qint1
 	jsr shiftr
@@ -6284,7 +6298,7 @@ swaplp:	lda argexp,x
 polyx:	sta polypt
 	sty polypt+1
 	jsr mov1f
-	lda #tempf1
+	lda #<tempf1
 	jsr fmult
 	jsr poly1
 	lda #<tempf1
@@ -9841,7 +9855,7 @@ init20:	ldx #asigon
 	jsr scrtch		; set variables
 	ldx #<warm 		; fix for bob russell
 	ldy #>warm
-	jsr $ff6f
+	jsr vreset
 	cli
 	jmp ready		; indicate ready, and start
 ; -------------------------------------------------------------------------------------------------
@@ -9879,7 +9893,7 @@ initv5:	lda bvtrs,x
 ;   this code gets altered (ldaadr, staadr) throughout execution. it is very fast this way.
 
 initat:
-	lda $ffff
+	lda memend
 	rts
 initl =*-initat		; length of move
 ; -------------------------------------------------------------------------------------------------
