@@ -1,4 +1,4 @@
 #!/bin/sh
-acme -v cbm2-basic4plus.b
+acme -Wtype-mismatch -v cbm2-basic4plus.b
 diff -s basic.bin original/basic128_4a.bin
 cmp basic.bin original/basic128_4a.bin

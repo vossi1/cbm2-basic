@@ -5,7 +5,7 @@
 !to "basic.bin", plain
 ; * switches
 PATCH4A = 1	; Revision -04a
-PATCHERR = 1	; Patch Errorcodes absolute instead immediate by Vossi
+PATCHERR = 0	; Patch Errorcodes absolute instead immediate by Vossi
 ; conditional assembly constants
 CC1 =0		; 64k  version
 CC2 =1		; 128k version
@@ -96,9 +96,6 @@ FILL	= $ff	; Fills free memory areas with $FF
 	nkrnl	=1			; using new kernel
 
 ; assembly constants and parameters
-	pgmkey	=$ff75			; program function keys
-	vecorg	=$ff7b			; jump vector
-
 	cr	=$d			; carriage return
 	lf	=$a			; line feed
 	clrscr	=147			; clear pet screen
@@ -392,6 +389,12 @@ errnum	*=*+1
 !addr	zp	= $00		; zeropage start
 !addr	stack	= $0100		; Stack
 !addr	memend	= $ffff
+
+!addr	newsys	= $ff6c
+!addr	vreset	= $ff6f
+!addr	pgmkey	= $ff75			; program function keys
+!addr	vecorg	= $ff7b			; jump vector
+
 ; Basic's ROM page work area
 * =$200
 fbuffr
@@ -497,8 +500,6 @@ tmpdes	*=*+6			; temporary for instr$
 highst	*=*+2			; max offset for any user bank
 
 msiism	*=*+1			; used to save length of string to be added in garb collect
-!addr newsys	= $ff6c
-!addr vreset	= $ff6f
 ; ******************************************* TOKENS **********************************************
 !initmem FILL                   ; All unused memory filled with $FF
 ; 8000 'tables, reserved words, and error texts'
@@ -512,20 +513,20 @@ bentry:	jmp init 			; entry point for start
 	!byte ' '
 
 ; 800b vsp rom indirect table (petii basic only)
-ieval1	!word eval1
-ieval2	!word eval2
-iflots	!word floats
-ifretm	!word fretms
-igtstk	!word getstk
-iinitv	!word initv
-iinpcm	!word inpcom
-iprit4	!word prit4
-inewst	!word newstt
-iptrgt	!word ptrget
-ixeqdr	!word xeqdir
-igoto0	!word goto0
-iinit0	!word init0
-irslst	!word reslst
+ieval1:	!word eval1
+ieval2:	!word eval2
+iflots:	!word floats
+ifretm:	!word fretms
+igtstk:	!word getstk
+iinitv:	!word initv
+iinpcm:	!word inpcom
+iprit4:	!word prit4
+inewst:	!word newstt
+iptrgt:	!word ptrget
+ixeqdr:	!word xeqdir
+igoto0:	!word goto0
+iinit0:	!word init0
+irslst:	!word reslst
 }
 ; -------------------------------------------------------------------------------------------------
 ; 8027 statment dispatch table
@@ -600,13 +601,11 @@ stmdsp:	!word end-1
 	!word dispos-1
 	!word puctrl-1
 
-fundsp
-	!word sgn
+fundsp:	!word sgn
 	!word int
 	!word abs
 
-usrloc
-	!word usrpok
+usrloc:	!word usrpok
 	!word fre
 	!word pos
 	!word sqr
@@ -901,59 +900,59 @@ erroa =*-ebase
 }
 ; -------------------------------------------------------------------------------------------------
 ; 82e7 kernal error messages.
-ams0	!scr "STOP KEY DETECTED",0
-ams1	!scr "TOO MANY FILES",0
-ams2	!scr "FILE OPEN",0
-ams3	!scr "FILE NOT OPEN",0
-ams4	!scr "FILE NOT FOUND",0
-ams5	!scr "DEVICE NOT PRESENT",0
-ams6	!scr "NOT INPUT FILE",0
-ams7	!scr "NOT OUTPUT FILE",0
-ams8	!scr "MISSING FILE NAME",0
-ams9	!scr "ILLEGAL DEVICE "
+ams0:	!scr "STOP KEY DETECTED",0
+ams1:	!scr "TOO MANY FILES",0
+ams2:	!scr "FILE OPEN",0
+ams3:	!scr "FILE NOT OPEN",0
+ams4:	!scr "FILE NOT FOUND",0
+ams5:	!scr "DEVICE NOT PRESENT",0
+ams6:	!scr "NOT INPUT FILE",0
+ams7:	!scr "NOT OUTPUT FILE",0
+ams8:	!scr "MISSING FILE NAME",0
+ams9:	!scr "ILLEGAL DEVICE "
 	!scr "NUMBER",0
 
 ; basic error messages.
-ams30	!scr cr,"ARE YOU SURE ?",0
-ams31	!scr cr,"BAD DISK ",cr,0
+ams30:	!scr cr,"ARE YOU SURE ?",0
+ams31:	!scr cr,"BAD DISK ",cr,0
 
-aernf	!scr "NEXT WITHOUT FOR",0
-aersn	!scr "SYNTAX ERROR",0
-aerrg	!scr "RETURN WITHOUT GOSUB",0
-aerod	!scr "OUT OF DATA",0
-aerfc	!scr "ILLEGAL QUANTITY",0
-aerov	!scr "OVERFLOW",0
-aerom	!scr "OUT OF MEMORY",0
-aerus	!scr "UNDEFINED STATEMENT",0
-aerbs	!scr "BAD SUBSCRIPT",0
-aerdd	!scr "REDIM",$27,"D ARRAY",0
-aerdvo	!scr "DIVISION BY ZERO",0
-aerid	!scr "ILLEGAL DIRECT",0
-aertm	!scr "TYPE MISMATCH",0
-aerls	!scr "STRING TOO LONG",0
-aerbd	!scr "FILE DATA",0
-aerst	!scr "FORMULA TOO COMPLEX",0
-aercn	!scr "CANNOT CONTINUE",0
-aeruf	!scr "UNDEFINED FUNCTION",0
-aerld	!scr cr,"?LOAD ERROR",cr,0
-aervr	!scr cr,"?VERIFY ERROR",cr,0
+aernf:	!scr "NEXT WITHOUT FOR",0
+aersn:	!scr "SYNTAX ERROR",0
+aerrg:	!scr "RETURN WITHOUT GOSUB",0
+aerod:	!scr "OUT OF DATA",0
+aerfc:	!scr "ILLEGAL QUANTITY",0
+aerov:	!scr "OVERFLOW",0
+aerom:	!scr "OUT OF MEMORY",0
+aerus:	!scr "UNDEFINED STATEMENT",0
+aerbs:	!scr "BAD SUBSCRIPT",0
+aerdd:	!scr "REDIM",$27,"D ARRAY",0
+aerdvo:	!scr "DIVISION BY ZERO",0
+aerid:	!scr "ILLEGAL DIRECT",0
+aertm:	!scr "TYPE MISMATCH",0
+aerls:	!scr "STRING TOO LONG",0
+aerbd:	!scr "FILE DATA",0
+aerst:	!scr "FORMULA TOO COMPLEX",0
+aercn:	!scr "CANNOT CONTINUE",0
+aeruf:	!scr "UNDEFINED FUNCTION",0
+aerld:	!scr cr,"?LOAD ERROR",cr,0
+aervr:	!scr cr,"?VERIFY ERROR",cr,0
 
-aintxt	!scr " IN ",0
-reddy	!scr cr,"READY.",cr,0
-abrktx	!scr cr,"BREAK",0
+aintxt:	!scr " IN ",0
+reddy:	!scr cr,"READY.",cr,0
+abrktx:	!scr cr,"BREAK",0
 
-aexi	!scr "EXTRA IGNORED",cr,0
-atry	!scr "REDO FROM START",cr,0
-aremsg	!scr "MORE",cr,0
-aeros	!scr "OUT OF STACK",0
+aexi:	!scr "EXTRA IGNORED",cr,0
+atry:	!scr "REDO FROM START",cr,0
+aremsg:	!scr "MORE",cr,0
+aeros:	!scr "OUT OF STACK",0
 !if CC2+CC3+CC4{
-aerot	!scr "OUT OF TEXT",0
+aerot:	!scr "OUT OF TEXT",0
 }
 !if CC3+CC4{
-aeroa	!scr "OUT OF ARRAY SPACE",0
+aeroa:	!scr "OUT OF ARRAY SPACE",0
 }
-aercr	!scr "UNABLE TO RESUME",0
-aerdi	!scr "UNABLE TO DISPOSE",0
+aercr:	!scr "UNABLE TO RESUME",0
+aerdi:	!scr "UNABLE TO DISPOSE",0
 
 ; ******************************************* CONTRL **********************************************
 ; 8550 'output error code and start again'
@@ -10000,8 +9999,8 @@ patch4a2:			; entry from swaplp
 	rts
 }
 patch4a1:			; entry from inputn
-tblx	= $ca
-scbot	= $dd
+!addr	tblx	= $ca
+!addr	scbot	= $dd
 	lda scbot
 	pha
 	lda tblx
